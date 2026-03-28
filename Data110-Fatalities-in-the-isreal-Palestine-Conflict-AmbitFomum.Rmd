@@ -1,0 +1,209 @@
+---
+title: "Data110-Fatalities-in-the-isreal-Palestine-Conflict-AmbitFomum"
+author: "Precious Ambit Fomum"
+date: "2026-03-28"
+output: html_document
+
+topic: "Who is most affected by fatalities in the Israeli-Palestinian conflict (2020–2023), and how do fatalities vary across regions over time?"
+
+source: "B’Tselem – The Israeli Information Center for Human Rights in the Occupied Territories"
+
+link: "https://statistics.btselem.org/en/intro/fatalities"
+
+kaggle_link: "https://www.kaggle.com/datasets/willianoliveiragibin/fatalities-in-the-israeli-palestinian"
+---
+
+```{r}
+# Introduction
+
+# I will be using a dataset on fatalities in the Israeli-Palestinian conflict from 2020 to 2023 to analyze recent trends. The dataset includes both quantitative variables, such as age and number of fatalities, and categorical variables, such as citizenship, gender, and location. These variables allow for meaningful comparisons across groups and over time. My goal is to explore patterns in fatalities and create visualizations that highlight differences between years and citizens.The dataset was obtained from Kaggle, but the original source is B’Tselem (The Israeli Information Center for Human Rights in the Occupied Territories), which documents fatalities in the Israeli-Palestinian conflict.
+
+# Load libraries
+
+# Purpose of this chunk
+
+# This chunk loads all necessary libraries needed for my project.
+
+
+library(dplyr)     # for data manipulation
+library(ggplot2)   # for creating visualizations
+library(tidyverse) # collection of useful packages
+library(readr)     # for reading and writing CSV files
+
+## Purpose of this chunk
+# This chunk sets the working directory and loads the dataset into R so it can be used for analysis.
+
+setwd("/Users/precious/Downloads/DATASETS") # folder where dataset is stored
+
+fatalities_isr_pse_conflict_2000_to_2023 <- read_csv("fatalities_isr_pse_conflict_2000_to_2023.csv")
+
+fatalities_2020_2023 <- fatalities_isr_pse_conflict_2000_to_2023 %>%
+  mutate(date_of_event = as.Date(date_of_event)) %>%
+  filter(format(date_of_event, "%Y") >= "2020" & format(date_of_event, "%Y") <= "2023")
+
+# The dataset was filtered to include only data from 2020 to 2023. A new variable “year” was created from the event date to allow for time-based analysis.
+
+write_csv(fatalities_2020_2023, "fatalities_2020_2023.csv") # loads cleaned dataset
+
+```
+
+
+```{r}
+## Year Variable and Run Age Regression
+
+fatalities_2020_2023 <- fatalities_2020_2023 %>%
+  mutate(
+    year = as.numeric(format(date_of_event, "%Y"))
+  )
+model <- lm(age ~ year, data = fatalities_2020_2023)
+summary(model)
+
+# This chunk creates a numeric year variable from the event date and uses a linear regression model to examine whether age changes over time. This helps test whether age is strongly related to year in the dataset.
+```
+The regression equation is:
+y = 1554.30 − 0.755(Year)
+
+Linear regression model was used to examine the relationship between age and year. The p-value for year (0.157) is greater than 0.05, indicating that year is not a significant predictor of age. Additionally, the adjusted R2 value is very low (0.001), meaning the model explains almost none of the variation in age. This suggests that age does not change significantly over time in this dataset, so other variables may provide more meaningful insights.
+
+```{r}
+## Regression of Fatalities Over Time
+
+fatalities_by_year <- fatalities_2020_2023 %>%
+  mutate(year = as.numeric(format(date_of_event, "%Y"))) %>%
+  count(year)
+model2 <- lm(n ~ year, data = fatalities_by_year)
+summary(model2)
+
+# This chunk summarizes fatalities by year, the purpose is to examine whether the total number of fatalities changes significantly over time.
+
+```
+
+A second regression model was created to examine fatalities over time. The results show that year is not a statistically significant predictor p-value = 0.446. Although there is some variation in fatalities across years, the model does not strongly explain these changes. This indicates that other factors, such as location or citizenship, may better explain differences in fatalities.
+
+```{r}
+
+## Fatalities by Year and Citizenship
+
+# This chunk creates a bar chart comparing Israeli and Palestinian fatalities from 2020 to 2023. It is the main visualization because it directly shows which group was most affected over time.
+fatalities_by_year_cit <- fatalities_2020_2023 %>%
+  mutate(year = as.numeric(format(date_of_event, "%Y"))) %>%
+  count(year, citizenship)
+
+ggplot(fatalities_by_year_cit, aes(factor(year), n, fill = citizenship)) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = n), position = position_dodge(0.9), vjust = -0.4) +
+  
+  scale_fill_manual(values = c("Israeli" = "#e63946",
+                               "Palestinian" = "#2a9d8f")) + # bar colors
+  
+  expand_limits(y = max(fatalities_by_year_cit$n) * 1.1) +
+  
+  labs(title = "Fatalities by Year and Citizenship (2020–2023)",
+       x = "Year", y = "Fatalities", fill = "Citizenship", caption = "Source: B’Tselem dataset"
+       ) + # graph title and axis
+  
+  theme_minimal() +   # grid lines 
+  
+  theme(
+    panel.background = element_rect(fill = "#fde2e4"),  # soft pink background color
+    plot.background = element_rect(fill = "#fde2e4"),
+    panel.grid.major = element_line(color = "white", size = 0.7), # visible grid
+    panel.grid.minor = element_line(color = "white", size = 0.3),
+    legend.position = "bottom"
+  )
+```
+
+The bar chart shows fatalities by year and citizenship from 2020 to 2023. Palestinian fatalities are consistently higher than Israeli fatalities across all years. There is a noticeable increase in fatalities in 2021, followed by a decrease in 2022 and a slight increase again in 2023. This suggests that fatalities fluctuate over time and differ significantly between groups.
+
+```{r}
+
+## Age Distribution by Citizenship
+
+# This chunk creates a boxplot to compare the age distribution of Israeli and Palestinian fatalities. It helps show whether one group tends to include younger or older individuals.
+
+ggplot(fatalities_2020_2023, aes(x = citizenship, y = age, fill = citizenship)) +
+  geom_boxplot(alpha = 0.7) +
+  
+  scale_fill_manual(values = c("Israeli" = "#e63946",
+                               "Palestinian" = "#2a9d8f")) + # Boxplot colors
+  
+  labs(
+    title = "Age Distribution by Citizenship",
+    subtitle = "Comparison of ages among fatalities",
+    x = "Citizenship",
+    y = "Age", caption = "Source: B’Tselem dataset"  # Axis and graph titles
+  ) +
+  
+  theme_minimal() +
+  theme(
+    text = element_text(family = "serif"),
+    legend.position = "none",
+    panel.background = element_rect(fill = "#fde2e4"), # Background colors
+    plot.background = element_rect(fill = "#fde2e4")
+  )
+```
+
+The boxplot compares the distribution of ages between Palestinian and Israeli fatalities. The median age for Palestinians appears lower than for Israelis, and the spread of ages is wider among Palestinian fatalities. This indicates differences in age patterns between the two groups.
+
+```{r}
+
+## Fatalities by Location Over Time
+
+# This chunk creates a line graph showing how fatalities vary across regions over time. It helps identify which locations experienced the highest fatalities and whether those patterns changed from year to year.
+
+loc_year <- fatalities_2020_2023 %>%
+  mutate(year = as.numeric(format(date_of_event, "%Y"))) %>%
+  count(year, event_location_region) %>%
+  group_by(event_location_region) %>%
+  slice_max(n, n = 3)
+
+ggplot(loc_year, aes(year, n, color = event_location_region)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  labs(title = "Fatalities by Location Over Time (2020–2023)",
+       x = "Year", y = "Number of Fatalities", color = "Location", caption = "Source: B’Tselem dataset") + # Axis and graph title
+  theme_minimal() +
+  theme(
+    text = element_text(family = "serif"),
+    panel.background = element_rect(fill = "#fde2e4"), # Graph background
+    plot.background = element_rect(fill = "#fde2e4"),
+    legend.position = "bottom"
+  )
+```
+
+The line graph shows fatalities across different locations over time. The West Bank shows an increasing trend in fatalities, while the Gaza Strip shows a sharp decrease after 2021. Israel remains relatively low compared to other regions. This highlights how fatalities vary significantly by location.
+
+
+
+# Final Analysis Essay
+
+
+
+The dataset was cleaned by filtering for the years 2020 to 2023 and creating a year variable from the date column. Visualizations revealed that fatalities differ significantly by citizenship and location, while age does not show a strong relationship with time. One limitation of this analysis is that regression models did not strongly explain variation in the data, suggesting that additional variables may be needed for deeper analysis. Overall, the visualizations provided meaningful insight into patterns of fatalities across groups and over time.The visualizations reveal clear and important patterns in the data. The bar chart comparing Israeli and Palestinian fatalities shows that Palestinian fatalities are significantly higher in every year from 2020 to 2023. The difference is especially noticeable in 2021, where Palestinian fatalities sharply increase compared to previous years. Even in years where fatalities decrease overall, Palestinians remain the most affected group. This consistent pattern suggests that the impact of the conflict is not evenly distributed, with Palestinians experiencing a much greater number of fatalities. The boxplot of age distribution also shows that Palestinian fatalities tend to involve younger individuals on average, which may indicate a broader impact across age groups. Additionally, the location-based line graph highlights that regions such as the West Bank and Gaza Strip account for most fatalities, further reinforcing that Palestinian areas are more heavily impacted.
+
+
+## How I cleaned the dataset
+
+The dataset was cleaned by filtering the original data to include only observations from 2020 to 2023, to support time-based analysis. The data was then grouped and summarized to calculate fatalities by year, citizenship, and location. Missing values in variables such as age were automatically excluded when running the regression model and boxplot.
+
+## What the visualizations show
+
+The visualizations show clear differences in fatalities by citizenship, age, and region. The bar chart reveals that Palestinian fatalities are much higher than Israeli fatalities in every year from 2020 to 2023, with the largest difference appearing in 2021. The boxplot suggests that Palestinian fatalities tend to involve younger individuals on average. The line graph also shows that Palestinian regions, especially the West Bank and Gaza Strip, account for the largest number of fatalities over time. Together, these graphs suggest that Palestinians were the most affected group in this dataset.
+
+## What I wished I could include
+
+One thing I would have liked to include is a stronger regression model with more useful predictor variables. The regression models in this project did not show strong statistical significance, which suggests that additional variables may be needed to explain the patterns more clearly. I also would have liked to include more detailed regional or cause-of-death analysis, but that was either unavailable or did not produce meaningful results in the time available.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
